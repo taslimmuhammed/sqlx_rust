@@ -7,8 +7,11 @@ async fn main() -> Result<(),Box<dyn Error>>{
     Ok(())
 }
 async fn connect_using_pool()->Result<i32,Box<dyn Error>>{
+    let email: &str="";
     let pool = PgPool::connect("postgres://taslim:6318@localhost:5432/test").await?;
-    pool.execute(sqlx::query("DELETE FROM table")).await?;
+    let mut rows = sqlx::query("SELECT * FROM users WHERE email = ?")
+    .bind(email)
+    .fetch(&pool);
     Ok(1)
 }
 async fn connect_db()->Result<i32,Box<dyn Error>>{
