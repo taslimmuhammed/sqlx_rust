@@ -7,10 +7,13 @@ use sqlx::Error;
 async fn main() -> Result<(), Error> {
     // Load environment variables from .env
     dotenv().ok();
-
-    // Get the database URL from the environment
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
+    //alter_user(&database_url.clone()).await?;
+    alter_books(&database_url.clone()).await?;
+    Ok(())
+    
+}
+async fn alter_user(database_url:&str)-> Result<(), Error>{
     // Create a connection pool to the database
     let pool = Pool::<Postgres>::connect(&database_url).await?;
 
@@ -46,11 +49,31 @@ async fn main() -> Result<(), Error> {
     
     Ok(())
 }
+async fn alter_books(database_url:&str)-> Result<(), Error>{
+    let pool = Pool::<Postgres>::connect(&database_url).await?;
+    //batch insert
+    let mut query = sqlx::query(
+        "INSERT INTO books(title, author) 
+         VALUES ($1, $2), ($3, $4), ($5, $6)"
+    )
+    .bind("The Catcher in the Rye")
+    .bind("J.D. Salinger")
+    .bind("1984")
+    .bind("George Orwell")
+    .bind("Brave New World")
+    ;
+    
+    query = query.bind("Aldous Huxley");
+    query.execute(&pool).await?;
 
-// async fn connect_db()->Result<i32,Error>{
-//     let url = "postgres://taslim:6318@localhost:5432/test";
-//     let mut conn = sqlx::postgres::PgConnection::connect(url).await?;
-//     let res = sqlx::query("SELECT 1+1 as sum").fetch_one(&mut conn).await?;
-//     let sum: i32 = res.get("sum");
-//     Ok(sum)
-// }
+    // Fetch the inserted row
+    let rows = sqlx::query!("SELECT id, title, author FROM books")
+        .fetch_all(&pool)
+        .await?;
+
+    for row in rows {
+        println!("Book {}: {}, {}", row.id, row.title, row.author);
+    }
+
+    Ok(())
+}
