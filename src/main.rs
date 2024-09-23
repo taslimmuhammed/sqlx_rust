@@ -1,7 +1,18 @@
-use sqlx::{query, Pool, Postgres};
+use sqlx::{pool, query, Pool, Postgres, Error, types::BigDecimal};
+// use bigdecimal::{BigDecimal, FromPrimitive};
 use dotenv::dotenv;
-use std::env;
-use sqlx::Error;
+use std::{env, str::FromStr};
+
+
+#[derive(Debug)]
+struct Receipt<'a> {
+    signer_address: String,
+    signature: Vec<u8>,
+    allocation_id: &'a str,
+    timestamp_ns: BigDecimal,
+    nonce: BigDecimal,
+    value: BigDecimal,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -99,5 +110,39 @@ async fn read_books(database_url:&str)-> Result<(), Error>{
         println!("Book {}: {}, {}", row.id, row.title, row.author);
     }
 
+    Ok(())
+}
+
+async fn add_reciepts(database_url:&str)-> Result<(), Error>{
+    let pool = Pool::<Postgres>::connect(&database_url).await?;
+    let receipt = Receipt {
+        signer_address: "0x12345abcde".to_string(),
+        signature: vec![1,2],
+        allocation_id: "42",
+        timestamp_ns: BigDecimal::from(9879878), // Example nanosecond timestamp
+        nonce: BigDecimal::from(8789),
+        value: BigDecimal::from(8789),
+    };
+    sqlx::query!(
+        r#"
+            INSERT INTO scalar_tap_receipts_invalid (
+                signer_address,
+                signature,
+                allocation_id,
+                timestamp_ns,
+                nonce,
+                value
+            )
+            VALUES ($1, $2, $3, $4, $5, $6)
+        "#,
+        receipt.signer_address,
+        receipt.signature,
+        receipt.allocation_id,
+        receipt.timestamp_ns,
+        receipt.nonce,
+        receipt.value
+        )
+    .execute(&pool)
+    .await?;
     Ok(())
 }
