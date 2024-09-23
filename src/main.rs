@@ -1,4 +1,4 @@
-use sqlx::{Pool, Postgres};
+use sqlx::{query, Pool, Postgres};
 use dotenv::dotenv;
 use std::env;
 use sqlx::Error;
@@ -8,10 +8,9 @@ async fn main() -> Result<(), Error> {
     // Load environment variables from .env
     dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    //alter_user(&database_url.clone()).await?;
-    alter_books(&database_url.clone()).await?;
+    add_users(&database_url).await?;
+    read_users(&database_url).await?;
     Ok(())
-    
 }
 async fn alter_user(database_url:&str)-> Result<(), Error>{
     // Create a connection pool to the database
@@ -38,15 +37,6 @@ async fn alter_user(database_url:&str)-> Result<(), Error>{
         .execute(&pool)
         .await?;
 
-    // Fetch the inserted row
-    let rows = sqlx::query!("SELECT id, name FROM users")
-        .fetch_all(&pool)
-        .await?;
-
-    for row in rows {
-        println!("User {}: {}", row.id, row.name);
-    }
-    
     Ok(())
 }
 async fn alter_books(database_url:&str)-> Result<(), Error>{
@@ -66,6 +56,40 @@ async fn alter_books(database_url:&str)-> Result<(), Error>{
     query = query.bind("Aldous Huxley");
     query.execute(&pool).await?;
 
+    Ok(())
+}
+async fn add_users(database_url:&str)-> Result<(), Error>{
+    let pool = Pool::<Postgres>::connect(&database_url).await?;
+    let mut q = String::from("INSERT INTO users (name) VALUES");
+    let v = vec!["harry potter", "J K Rowling"];
+    for i in (1..3){
+        q = q+"($"+ &i.to_string()+")";
+        if i!=2 {q=q+","}
+    }
+    let mut query = sqlx::query(&q);
+    for x in v{
+        query = query.bind(x);
+    }
+    println!("{}",q);
+    query.execute(&pool).await?;
+    println!("Added books");
+    Ok(())
+}
+async fn read_users(database_url:&str)-> Result<(), Error>{
+    let pool = Pool::<Postgres>::connect(&database_url).await?;
+    // Fetch the inserted row
+    let rows = sqlx::query!("SELECT id, name FROM users")
+        .fetch_all(&pool)
+        .await?;
+
+    for row in rows {
+        println!("User {}: {}", row.id, row.name);
+    }
+    
+    Ok(())
+}
+async fn read_books(database_url:&str)-> Result<(), Error>{
+    let pool = Pool::<Postgres>::connect(&database_url).await?;
     // Fetch the inserted row
     let rows = sqlx::query!("SELECT id, title, author FROM books")
         .fetch_all(&pool)
